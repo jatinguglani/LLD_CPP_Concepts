@@ -1,105 +1,220 @@
-#include <bits/stdc++.h>
+#include <iostream>
+#include <cstring>
 using namespace std;
 
-class RuleOf5 {
+/*
+    THEORY OVERVIEW
+    ----------------
+    This class manually manages a heap resource (int*).
 
-    private:
-        
-    // Example resource (e.g., dynamic memory)
-        int *data;
-        int size;
+    ➜ Any class that manages a resource MUST define how it:
+      - is copied
+      - is assigned
+      - is destroyed
 
-    public:
+    Otherwise:
+      - shallow copies happen
+      - multiple objects point to the same memory
+      - double delete → undefined behavior
 
-    RuleOf5 () : data(nullptr), size(0) {
-        cout<<"Default constructor"<<endl;
+    This leads us to the Rule of 5:
+      1. Destructor
+      2. Copy Constructor
+      3. Copy Assignment Operator
+      4. Move Constructor
+      5. Move Assignment Operator
+*/
+
+class MyBuffer {
+
+private:
+    int *data;
+    int size;
+
+public:
+
+    MyBuffer() : data(nullptr), size(0) {
+        cout << "Default Constructor\n";
     }
 
-    RuleOf5 (int size) : data(nullptr), size(0) {
-        cout<<"Parameterized constructor"<<endl;
 
+    /*
+        CONSTRUCTOR
+
+        Purpose:
+        - Acquire the resource
+        - Establish class invariants
+
+        Theory:
+        - Constructor is responsible for "owning" memory
+        - Ownership must be clear and exclusive
+    */
+
+    MyBuffer (int size) {
         this->size = size;
 
         if (size > 0) {
             data = new int[size];
-            memset (data, 0, size*sizeof(int));
+            memset(data, 0, size*sizeof (int));
+        } else {
+            data = nullptr;
+        }
+
+        cout<<"Constructor\n";
+    }
+
+    /*
+        COPY CONSTRUCTOR
+
+        Called when:
+        - MyBuffer b = a;
+        - MyBuffer b(a);
+        - Passing object by value
+
+        Theory:
+        - Copy constructor must create a *deep copy*
+        - Each object must own its own memory
+        - Shallow copy here would cause double delete
+    */
+
+    MyBuffer (const MyBuffer& obj) {
+
+        cout<<"copy Constructor"<<endl;
+
+        size = obj.size;
+
+        if (size > 0) {
+            data = new int[size];
+            memcpy(data, obj.data, size*sizeof (int));
         } else {
             data = nullptr;
         }
     }
 
-    //copy constructor
-    RuleOf5 (const RuleOf5 & obj) : data(nullptr), size(obj.size) {
-        
-        cout<<"Copy Constructor"<<endl;
-        if (size > 0) {
-            data = new int[size];
+    /*
+        COPY ASSIGNMENT OPERATOR
 
-            memcpy(data, obj.data, size*sizeof(int));
-        }
+        Called when:
+        - b = a;   (both objects already exist)
 
-    }
+        Theory:
+        - Assignment ≠ construction
+        - We must:
+            1. Handle self-assignment
+            2. Release old resource
+            3. Deep copy new resource
+        - Order matters to avoid leaks
+    */
 
-    // copy assignment
-    
-    RuleOf5& operator=(const RuleOf5 & obj) {
+    MyBuffer& operator=(const MyBuffer& obj) {
+
         cout<<"Copy Assignment"<<endl;
-        
-        if (this == &obj)    return *this;
 
+        // Self assignment check    
+        if (this == &obj)
+            return *this;
+
+        // release currect resource
         delete[] data;
-        data = nullptr;
-        size = obj.size;
 
+        //copy new resource
+        size = obj.size;
         if (size > 0) {
             data = new int[size];
-            memcpy(data, obj.data, size*sizeof(int));
+            memcpy (data, obj.data, size*sizeof(int));
+        } else {
+            data = nullptr;
         }
 
         return *this;
     }
-    
-    //move construtor
-    RuleOf5 (RuleOf5 && obj) noexcept {
-        cout<<"move constructor"<<endl;
+
+    /*
+        MOVE CONSTRUCTOR
+
+        Called when:
+        - MyBuffer b = std::move(a);
+        - Returning objects by value (optimizations)
+
+        Theory:
+        - Moves TRANSFER ownership instead of copying
+        - No allocation
+        - No deep copy
+        - Much faster than copy
+
+        Important:
+        - Source object must be left in a valid state
+        - Usually: nullptr + size = 0
+        - noexcept is critical for STL containers
+    */
+    MyBuffer(MyBuffer&& obj) noexcept {
+        
+        cout<<"Move Constructor"<<endl;
 
         data = obj.data;
         size = obj.size;
+
+        //steal ownership
         obj.data = nullptr;
         obj.size = 0;
     }
 
-    //move assignment
-    RuleOf5& operator=(RuleOf5 && obj) noexcept {
-        
-        if (this == &obj) return *this;
+    /*
+        MOVE ASSIGNMENT OPERATOR
+
+        Called when:
+        - b = std::move(a);
+
+        Theory:
+        - Similar to move constructor, but target already owns memory
+        - Must:
+            1. Free current resource
+            2. Steal other's resource
+            3. Null out source
+    */
+    MyBuffer& operator=(MyBuffer&& obj) noexcept {
+        cout<<"Move Assignment"<<endl;
+
+        if (this == &obj)
+            return *this;
 
         delete[] data;
 
         data = obj.data;
         size = obj.size;
+
         obj.data = nullptr;
         obj.size = 0;
 
         return *this;
     }
 
-    ~RuleOf5 () {
-        cout<<"destructor"<<endl;
+    /*
+        DESTRUCTOR
+
+        Theory:
+        - Called when object goes out of scope
+        - Must release owned resource
+        - Should NEVER throw exceptions
+    */
+    ~MyBuffer() {
+        std::cout << "Destructor\n";
         delete[] data;
     }
 };
 
-int main () {
-    RuleOf5 obj1;
+int main() {
+    MyBuffer a(5);              // Constructor
 
-    RuleOf5 obj2(10);
+    MyBuffer b = a;             // Copy Constructor
 
-    RuleOf5 obj3(obj2);
+    MyBuffer c;
+    c = a;                      // Copy Assignment
 
-    obj1 = obj3;
+    MyBuffer d = std::move(a);  // Move Constructor
 
-    RuleOf5 obj4(move(obj2));
+    MyBuffer e;
+    e = std::move(b);           // Move Assignment
 
-    obj3 = move(obj4);
+    return 0;                   // Destructors called
 }
