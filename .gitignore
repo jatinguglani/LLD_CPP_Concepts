@@ -1,6 +1,14 @@
 # Prerequisites
 *.d
 
+# macOS files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# VS Code settings (local to your machine)
+.vscode/
+
 # Compiled Object files
 *.slo
 *.lo
